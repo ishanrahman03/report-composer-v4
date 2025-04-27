@@ -2,11 +2,8 @@ import React from "react";
 import {
   ChevronLeftIcon,
   ChevronUpIcon,
-  ClockIcon,
-  FileTextIcon,
   PlusIcon,
   SearchIcon,
-  InfoIcon,
   CheckIcon,
   XIcon,
   ChevronsUpDownIcon,
@@ -29,7 +26,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../../../components/ui/select";
-import { Separator } from "../../../../components/ui/separator";
 import {
   Tabs,
   TabsContent,
@@ -110,9 +106,9 @@ export const MainContentSection: React.FC<MainContentSectionProps> = ({
       id: 1,
       title: "C0. Introduction",
       subItems: [
-        { id: 101, title: "C0.1", description: "Give a general description and introduction to your organisation" },
-        { id: 102, title: "C0.2", description: "Details about Basis 2" },
-        { id: 103, title: "C0.3", description: "Details about Basis 3" },
+        { id: 101, title: "Basis 1", description: "Details about Basis 1" },
+        { id: 102, title: "Basis 2", description: "Details about Basis 2" },
+        { id: 103, title: "Basis 3", description: "Details about Basis 3" },
       ]
     },
     {

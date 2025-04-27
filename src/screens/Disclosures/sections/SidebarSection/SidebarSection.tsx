@@ -13,12 +13,10 @@ import {
   WrenchIcon,
   FileTextIcon,
   ClipboardIcon,
-  ChevronRightIcon,
   BarChartIcon,
   UsersIcon,
   DollarSignIcon,
 } from "lucide-react";
-import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Accordion,
@@ -68,64 +66,8 @@ const bottomNavItems = [
   { icon: <MessageSquareIcon className="h-4 w-4" />, label: "Feedback" },
 ];
 
-// Disclosure items with sub-items
-const disclosureItems = [
-  {
-    id: "basis-preparation",
-    icon: <ClipboardIcon className="h-4 w-4" />,
-    label: "Basis for Preparation",
-    subItems: [
-      { id: "basis-1", label: "Basis 1" },
-      { id: "basis-2", label: "Basis 2" },
-      { id: "basis-3", label: "Basis 3" },
-      { id: "basis-4", label: "Basis 4" },
-    ]
-  },
-  {
-    id: "governance",
-    icon: <BarChartIcon className="h-4 w-4" />,
-    label: "Governance Structure",
-    subItems: [
-      { id: "board-composition", label: "Board Composition" },
-      { id: "committees", label: "Committees" },
-      { id: "executive", label: "Executive Leadership" },
-    ]
-  },
-  {
-    id: "environment",
-    icon: <TruckIcon className="h-4 w-4" />,
-    label: "Environmental Performance",
-    subItems: [
-      { id: "carbon", label: "Carbon Emissions" },
-      { id: "water", label: "Water Usage" },
-      { id: "waste", label: "Waste Management" },
-    ]
-  },
-  {
-    id: "social",
-    icon: <UsersIcon className="h-4 w-4" />,
-    label: "Social Impacts",
-    subItems: [
-      { id: "employee", label: "Employee Welfare" },
-      { id: "community", label: "Community Engagement" },
-      { id: "diversity", label: "Diversity & Inclusion" },
-    ]
-  },
-  {
-    id: "financial",
-    icon: <DollarSignIcon className="h-4 w-4" />,
-    label: "Financial Metrics",
-    subItems: [
-      { id: "revenue", label: "Revenue Breakdown" },
-      { id: "investments", label: "ESG Investments" },
-      { id: "risk", label: "Risk Assessment" },
-    ]
-  },
-];
-
 export const SidebarSection = (): JSX.Element => {
   const location = useLocation();
-  const [activeDisclosureId, setActiveDisclosureId] = useState<string | null>(null);
   
   return (
     <div className="h-screen w-64 border-r border-border bg-neutral-50">

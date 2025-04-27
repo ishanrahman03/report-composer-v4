@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import { PaperclipIcon, SendIcon, XIcon, ChevronRightIcon, ChevronLeftIcon, ImageIcon, FileIcon, BarChart2Icon, Trash2Icon } from "lucide-react";
+import { PaperclipIcon, SendIcon, XIcon, ImageIcon, FileIcon, ChevronRightIcon } from "lucide-react";
+import { getAIResponse, analyzeCDPData, sampleCDPData, ChatMessage } from "../../lib/openai";
+import "./ChatbotPane.css";
 
 interface ChatbotPaneProps {
   isOpen: boolean;
@@ -16,15 +18,23 @@ interface Attachment {
   size: string;
 }
 
+interface Message {
+  content: string;
+  isUser: boolean;
+  attachments?: Attachment[];
+  isLoading?: boolean;
+}
+
 export const ChatbotPane: React.FC<ChatbotPaneProps> = ({ isOpen, onClose, embedded = false }) => {
   const [mode, setMode] = useState<"ask" | "write">("ask");
-  const [messages, setMessages] = useState<Array<{ content: string; isUser: boolean; attachments?: Attachment[] }>>([
-    { content: "Hello! I'm your Copilot assistant. How can I help you today?", isUser: false },
+  const [messages, setMessages] = useState<Message[]>([
+    { content: "Hello! I'm your Copilot assistant for CDP Climate disclosures. How can I help you today?", isUser: false },
   ]);
   const [input, setInput] = useState("");
   const [width, setWidth] = useState(380);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [showAttachmentPanel, setShowAttachmentPanel] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const dragStartXRef = useRef<number | null>(null);
@@ -112,32 +122,84 @@ export const ChatbotPane: React.FC<ChatbotPaneProps> = ({ isOpen, onClose, embed
     fileInputRef.current?.click();
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (input.trim() || attachments.length > 0) {
       // Create a new message with attachments if present
-      const newMessage = {
+      const userMessage = {
         content: input.trim(),
         isUser: true,
         attachments: attachments.length > 0 ? [...attachments] : undefined
       };
       
-      setMessages([...messages, newMessage]);
+      // Add user message to chat
+      setMessages(prev => [...prev, userMessage]);
       setInput("");
       setAttachments([]);
       setShowAttachmentPanel(false);
       
-      // Simulate a response after a short delay
-      setTimeout(() => {
-        const responses = [
-          "I'm analyzing your request...",
-          "Let me help you with that. Could you provide more details?",
-          "Based on your input, I recommend looking at the environmental disclosures section.",
-          "I've found some relevant information in the BRSR framework that might help.",
-          "You might want to check the Targets section in your CDP report for this information.",
-        ];
-        const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-        setMessages(prev => [...prev, { content: randomResponse, isUser: false }]);
-      }, 1000);
+      // Add loading message
+      setIsProcessing(true);
+      const loadingMessage = { content: "Thinking...", isUser: false, isLoading: true };
+      setMessages(prev => [...prev, loadingMessage]);
+      
+      try {
+        // Convert chat history to OpenAI format
+        const chatHistory: ChatMessage[] = messages
+          .filter(msg => !msg.isLoading)
+          .map(msg => ({
+            content: msg.content,
+            role: msg.isUser ? 'user' : 'assistant'
+          }));
+        
+        // Add system context message
+        const contextMessage: ChatMessage = {
+          role: 'system',
+          content: `You are a helpful climate disclosure assistant specializing in CDP (Carbon Disclosure Project) reporting. 
+          Help the user with their CDP Climate Change questionnaire. Be concise, accurate, and helpful.
+          Use the CDP data provided to give specific recommendations.`
+        };
+        
+        // Add the current user message
+        chatHistory.push({
+          content: userMessage.content,
+          role: 'user'
+        });
+        
+        // Get AI response based on mode
+        let response;
+        if (mode === "ask") {
+          response = await analyzeCDPData(userMessage.content, sampleCDPData);
+        } else {
+          // For write mode, adjust the prompt to generate more detailed content
+          response = await getAIResponse([
+            {
+              role: 'system',
+              content: `You are an expert climate disclosure writer. Create professional, 
+              detailed content for CDP Climate Change disclosures based on the user's request.
+              Focus on accuracy, compliance with reporting standards, and concrete examples.`
+            },
+            ...chatHistory.slice(-4) // Use last few messages for context
+          ]);
+        }
+        
+        // Remove loading message and add actual response
+        setMessages(prev => {
+          const newMessages = prev.filter(msg => !msg.isLoading);
+          return [...newMessages, { content: response || "I'm sorry, I couldn't generate a response.", isUser: false }];
+        });
+      } catch (error) {
+        console.error("Error getting AI response:", error);
+        // Remove loading message and add error message
+        setMessages(prev => {
+          const newMessages = prev.filter(msg => !msg.isLoading);
+          return [...newMessages, { 
+            content: "I'm sorry, there was an error processing your request. Please try again.", 
+            isUser: false 
+          }];
+        });
+      } finally {
+        setIsProcessing(false);
+      }
     }
   };
 
@@ -190,10 +252,22 @@ export const ChatbotPane: React.FC<ChatbotPaneProps> = ({ isOpen, onClose, embed
               className={`max-w-[85%] p-3 rounded-lg ${
                 message.isUser 
                   ? "bg-purple-600 text-white rounded-tr-none" 
-                  : "bg-gray-100 text-gray-800 rounded-tl-none"
+                  : message.isLoading 
+                    ? "bg-gray-50 text-gray-500 rounded-tl-none border border-gray-200"
+                    : "bg-gray-100 text-gray-800 rounded-tl-none"
               }`}
             >
-              {message.content}
+              {message.isLoading ? (
+                <div className="flex items-center space-x-2">
+                  <div className="animate-pulse w-2 h-2 bg-gray-400 rounded-full"></div>
+                  <div className="animate-pulse w-2 h-2 bg-gray-400 rounded-full animation-delay-200"></div>
+                  <div className="animate-pulse w-2 h-2 bg-gray-400 rounded-full animation-delay-400"></div>
+                  <span className="ml-1 text-sm">{message.content}</span>
+                </div>
+              ) : (
+                <div className="message-content">{message.content}</div>
+              )}
+              
               {/* Display attachments if any */}
               {message.attachments && message.attachments.length > 0 && (
                 <div className={`mt-2 pt-2 ${message.isUser ? "border-t border-purple-400" : "border-t border-gray-300"}`}>
@@ -265,6 +339,7 @@ export const ChatbotPane: React.FC<ChatbotPaneProps> = ({ isOpen, onClose, embed
               onKeyDown={handleKeyDown}
               placeholder={mode === "ask" ? "Ask a question..." : "Write a report..."}
               className="flex-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 py-2"
+              disabled={isProcessing}
             />
             <div className="flex items-center space-x-1">
               <Button 
@@ -272,16 +347,22 @@ export const ChatbotPane: React.FC<ChatbotPaneProps> = ({ isOpen, onClose, embed
                 size="icon" 
                 className="h-8 w-8 rounded-full"
                 onClick={handleTriggerFileUpload}
+                disabled={isProcessing}
               >
                 <PaperclipIcon className="h-4 w-4 text-gray-500" />
               </Button>
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="h-8 w-8 rounded-full bg-purple-100 text-purple-600"
+                className={`h-8 w-8 rounded-full ${isProcessing ? 'bg-gray-100 text-gray-400' : 'bg-purple-100 text-purple-600'}`}
                 onClick={handleSendMessage}
+                disabled={isProcessing}
               >
-                <SendIcon className="h-4 w-4" />
+                {isProcessing ? (
+                  <div className="h-4 w-4 rounded-full border-2 border-gray-300 border-t-gray-500 animate-spin"></div>
+                ) : (
+                  <SendIcon className="h-4 w-4" />
+                )}
               </Button>
               {/* Hidden file input */}
               <input 
@@ -316,10 +397,21 @@ export const ChatbotPane: React.FC<ChatbotPaneProps> = ({ isOpen, onClose, embed
                 className={`max-w-[85%] p-3 rounded-lg ${
                   message.isUser 
                     ? "bg-purple-600 text-white rounded-tr-none" 
-                    : "bg-gray-100 text-gray-800 rounded-tl-none"
+                    : message.isLoading 
+                      ? "bg-gray-50 text-gray-500 rounded-tl-none border border-gray-200"
+                      : "bg-gray-100 text-gray-800 rounded-tl-none"
                 }`}
               >
-                {message.content}
+                {message.isLoading ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="animate-pulse w-2 h-2 bg-gray-400 rounded-full"></div>
+                    <div className="animate-pulse w-2 h-2 bg-gray-400 rounded-full animation-delay-200"></div>
+                    <div className="animate-pulse w-2 h-2 bg-gray-400 rounded-full animation-delay-400"></div>
+                    <span className="ml-1 text-sm">{message.content}</span>
+                  </div>
+                ) : (
+                  <div className="message-content">{message.content}</div>
+                )}
                 
                 {/* Display attachments if any */}
                 {message.attachments && message.attachments.length > 0 && (
@@ -392,6 +484,7 @@ export const ChatbotPane: React.FC<ChatbotPaneProps> = ({ isOpen, onClose, embed
                 onKeyDown={handleKeyDown}
                 placeholder={mode === "ask" ? "Ask a question..." : "Write a report..."}
                 className="flex-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 py-2"
+                disabled={isProcessing}
               />
               <div className="flex items-center space-x-1">
                 <Button 
@@ -399,16 +492,22 @@ export const ChatbotPane: React.FC<ChatbotPaneProps> = ({ isOpen, onClose, embed
                   size="icon" 
                   className="h-8 w-8 rounded-full"
                   onClick={handleTriggerFileUpload}
+                  disabled={isProcessing}
                 >
                   <PaperclipIcon className="h-4 w-4 text-gray-500" />
                 </Button>
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  className="h-8 w-8 rounded-full bg-purple-100 text-purple-600"
+                  className={`h-8 w-8 rounded-full ${isProcessing ? 'bg-gray-100 text-gray-400' : 'bg-purple-100 text-purple-600'}`}
                   onClick={handleSendMessage}
+                  disabled={isProcessing}
                 >
-                  <SendIcon className="h-4 w-4" />
+                  {isProcessing ? (
+                    <div className="h-4 w-4 rounded-full border-2 border-gray-300 border-t-gray-500 animate-spin"></div>
+                  ) : (
+                    <SendIcon className="h-4 w-4" />
+                  )}
                 </Button>
                 
                 {/* Hidden file input */}

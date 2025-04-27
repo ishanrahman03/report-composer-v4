@@ -12,13 +12,7 @@ import {
   TruckIcon,
   WrenchIcon,
   FileTextIcon,
-  ClipboardIcon,
-  ChevronRightIcon,
-  BarChartIcon,
-  UsersIcon,
-  DollarSignIcon,
 } from "lucide-react";
-import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Accordion,
@@ -72,7 +66,6 @@ const bottomNavItems = [
 
 export const SidebarSection = (): JSX.Element => {
   const location = useLocation();
-  const [activeDisclosureId, setActiveDisclosureId] = useState<string | null>(null);
   
   return (
     <div className="h-screen w-64 border-r border-border bg-neutral-50">

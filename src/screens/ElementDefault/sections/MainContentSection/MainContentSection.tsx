@@ -3,13 +3,17 @@ import {
   CheckCircleIcon,
   ChevronLeftIcon,
   ChevronUpIcon,
-  ClockIcon,
   FileTextIcon,
   ItalicIcon,
   PlusIcon,
   XIcon,
+  ListIcon,
+  LinkIcon,
 } from "lucide-react";
-import React from "react";
+import React, { useCallback, useMemo } from "react";
+import { createEditor, Editor } from "slate";
+import { Slate, Editable, withReact, useSlate } from "slate-react";
+import { withHistory } from "slate-history";
 import { ChatbotPane } from "../../../../components/Chatbot/ChatbotPane";
 import {
   Accordion,
@@ -26,7 +30,6 @@ import {
   CardTitle,
 } from "../../../../components/ui/card";
 import { Dialog } from "../../../../components/ui/dialog";
-import { Input } from "../../../../components/ui/input";
 import { Progress } from "../../../../components/ui/progress";
 import {
   Select,
@@ -43,6 +46,112 @@ import {
   TabsTrigger,
 } from "../../../../components/ui/tabs";
 
+// Define custom types for our editor
+type CustomElement = { type: 'paragraph' | 'heading' | 'subheading'; children: CustomText[] }
+type CustomText = { text: string; bold?: boolean; italic?: boolean }
+
+// Define a type guard for custom elements
+const isCustomElement = (element: any): element is CustomElement => {
+  return ['paragraph', 'heading', 'subheading'].includes(element.type)
+}
+
+// Leaf component for rendering formatted text
+const Leaf = ({ attributes, children, leaf }: { attributes: any, children: any, leaf: any }) => {
+  if ((leaf as any).bold) {
+    children = <strong>{children}</strong>
+  }
+
+  if ((leaf as any).italic) {
+    children = <em>{children}</em>
+  }
+
+  return <span {...attributes}>{children}</span>
+}
+
+// Define initial content for the editor
+const initialValue: CustomElement[] = [
+  {
+    type: 'paragraph',
+    children: [{ text: '' }],
+  },
+];
+
+// Custom formats for text styling
+const CustomEditor = {
+  isBoldMarkActive(editor: any) {
+    const marks = Editor.marks(editor)
+    return marks ? marks.bold === true : false
+  },
+
+  isItalicMarkActive(editor: any) {
+    const marks = Editor.marks(editor)
+    return marks ? marks.italic === true : false
+  },
+
+  toggleBoldMark(editor: any) {
+    const isActive = CustomEditor.isBoldMarkActive(editor)
+    if (isActive) {
+      Editor.removeMark(editor, 'bold')
+    } else {
+      Editor.addMark(editor, 'bold', true)
+    }
+  },
+
+  toggleItalicMark(editor: any) {
+    const isActive = CustomEditor.isItalicMarkActive(editor)
+    if (isActive) {
+      Editor.removeMark(editor, 'italic')
+    } else {
+      Editor.addMark(editor, 'italic', true)
+    }
+  },
+  
+  toggleBlockType(editor: any, blockType: string) {
+    const isActive = CustomEditor.isBlockActive(editor, blockType)
+    const newProperties: Partial<CustomElement> = {
+      type: isActive ? 'paragraph' : blockType as any,
+    }
+    
+    Editor.withoutNormalizing(editor, () => {
+      (Editor as any).setNodes(editor, newProperties, { match: (n: any) => isCustomElement(n) });
+    });
+  },
+  
+  isBlockActive(editor: any, blockType: string) {
+    const [match] = Editor.nodes(editor, {
+      match: n => isCustomElement(n) && n.type === blockType,
+    })
+    
+    return !!match
+  }
+}
+
+// Define a component for the toolbar buttons
+const MarkButton = ({ format, icon }: { format: 'bold' | 'italic', icon: JSX.Element }) => {
+  const editor = useSlate()
+  const isActive = format === 'bold' 
+    ? CustomEditor.isBoldMarkActive(editor)
+    : CustomEditor.isItalicMarkActive(editor)
+  
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className={`h-10 w-10 ${isActive ? 'opacity-100' : 'opacity-30'}`}
+      onMouseDown={(e) => {
+        e.preventDefault()
+        if (format === 'bold') {
+          CustomEditor.toggleBoldMark(editor)
+        } else {
+          CustomEditor.toggleItalicMark(editor)
+        }
+      }}
+    >
+      {icon}
+    </Button>
+  )
+}
+
 interface MainContentSectionProps {
   chatbotOpen: boolean;
   onCloseChatbot: () => void;
@@ -54,9 +163,33 @@ export const MainContentSection: React.FC<MainContentSectionProps> = ({
   onCloseChatbot,
   sidebarOpen
 }) => {
-  const [count, setCount] = React.useState(0);
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [cdpDialogOpen, setCdpDialogOpen] = React.useState(false);
+  
+  // Create and memoize the editor instance
+  const editor = useMemo(() => withHistory(withReact(createEditor())), []);
+  
+  // Define a rendering function for leaf nodes (text formatting)
+  const renderLeaf = useCallback((props: any) => {
+    return <Leaf {...props} />;
+  }, []);
+  
+  // Define a rendering function for block elements
+  const renderElement = useCallback((props: any) => {
+    const { attributes, children, element } = props;
+    
+    switch (element.type) {
+      case 'heading':
+        return <h2 {...attributes} className="text-xl font-bold mb-2">{children}</h2>;
+      case 'subheading':
+        return <h3 {...attributes} className="text-lg font-semibold mb-1">{children}</h3>;
+      default:
+        return <p {...attributes} className="mb-4">{children}</p>;
+    }
+  }, []);
+  
+  // Handle value change in the editor
+  const [value, setValue] = React.useState<CustomElement[]>(initialValue);
 
   // Disclosure requirements data with sub-items
   const disclosureItems = [
@@ -381,86 +514,104 @@ export const MainContentSection: React.FC<MainContentSectionProps> = ({
                       </div>
 
                       <div className="px-6 py-4">
-                        <div className="flex gap-2 mb-4">
-                          <Select>
-                            <SelectTrigger className="w-[200px] border-[#999999]">
-                              <SelectValue placeholder="Normal" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="normal">Normal</SelectItem>
-                              <SelectItem value="heading">Heading</SelectItem>
-                              <SelectItem value="subheading">
-                                Subheading
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
+                        <Slate 
+                          editor={editor} 
+                          initialValue={value} 
+                          onChange={newValue => setValue(newValue as CustomElement[])}
+                        >
+                          <div className="flex gap-2 mb-4">
+                            <Select
+                              onValueChange={(value) => {
+                                CustomEditor.toggleBlockType(editor, value);
+                              }}
+                            >
+                              <SelectTrigger className="w-[200px] border-[#999999]">
+                                <SelectValue placeholder="Normal" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="paragraph">Normal</SelectItem>
+                                <SelectItem value="heading">Heading</SelectItem>
+                                <SelectItem value="subheading">
+                                  Subheading
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
 
-                          <div className="flex border rounded border-[#999999] h-[42px]">
+                            <div className="flex border rounded border-[#999999] h-[42px]">
+                              <MarkButton 
+                                format="bold" 
+                                icon={<BoldIcon className="h-3.5 w-3.5" />} 
+                              />
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="border-l border-[#999999] h-10 w-10"
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  CustomEditor.toggleItalicMark(editor);
+                                }}
+                              >
+                                <ItalicIcon className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+
+                            <div className="flex border rounded border-[#999999] h-[42px]">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="rounded-l-md h-10 w-10"
+                              >
+                                <ListIcon className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="border-l border-[#999999] h-10 w-10"
+                              >
+                                <LinkIcon className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="border-l border-[#999999] rounded-r-md h-10 w-10"
+                              >
+                                <img
+                                  src="/img-21.svg"
+                                  alt="Format"
+                                  className="h-3.5 w-3"
+                                />
+                              </Button>
+                            </div>
+
                             <Button
-                              variant="ghost"
-                              size="icon"
-                              className="rounded-l-md h-10 w-10 opacity-30"
+                              variant="outline"
+                              className="ml-auto border-[#999999] opacity-30"
                             >
-                              <BoldIcon className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="border-l border-[#999999] h-10 w-10 opacity-30"
-                            >
-                              <ItalicIcon className="h-3.5 w-3.5" />
+                              <span className="text-base text-[#000000cc] font-['Arial-Narrow',Helvetica]">
+                                Related Answers 
+                              </span>
                             </Button>
                           </div>
 
-                          <div className="flex border rounded border-[#999999] h-[42px]">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="rounded-l-md h-10 w-10"
-                            >
-                              <img
-                                src="/img-13.svg"
-                                alt="Format"
-                                className="h-3.5 w-2.5"
-                              />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="border-l border-[#999999] h-10 w-10"
-                            >
-                              <img
-                                src="/img-22.svg"
-                                alt="Format"
-                                className="h-3.5 w-2.5"
-                              />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="border-l border-[#999999] rounded-r-md h-10 w-10"
-                            >
-                              <img
-                                src="/img-21.svg"
-                                alt="Format"
-                                className="h-3.5 w-3"
-                              />
-                            </Button>
+                          <div className="min-h-[150px] border border-gray-200 rounded-md p-3 mt-4">
+                            <Editable
+                              renderElement={renderElement}
+                              renderLeaf={renderLeaf}
+                              placeholder="Start typing an answer..."
+                              className="h-full outline-none text-base font-['Arial-Narrow',Helvetica] tracking-[0.08px]"
+                              onKeyDown={(event) => {
+                                // Handle keyboard shortcuts
+                                if (event.key === 'b' && (event.ctrlKey || event.metaKey)) {
+                                  event.preventDefault();
+                                  CustomEditor.toggleBoldMark(editor);
+                                } else if (event.key === 'i' && (event.ctrlKey || event.metaKey)) {
+                                  event.preventDefault();
+                                  CustomEditor.toggleItalicMark(editor);
+                                }
+                              }}
+                            />
                           </div>
-
-                          <Button
-                            variant="outline"
-                            className="ml-auto border-[#999999] opacity-30"
-                          >
-                            <span className="text-base text-[#000000cc] font-['Arial-Narrow',Helvetica]">
-                              Related Answers ({count})
-                            </span>
-                          </Button>
-                        </div>
-
-                        <div className="text-base text-[#0000008f] font-['Arial-Narrow',Helvetica] tracking-[0.08px] mt-4">
-                          Start typing an answer...
-                        </div>
+                        </Slate>
                       </div>
                     </div>
                   </CardContent>
@@ -535,7 +686,7 @@ export const MainContentSection: React.FC<MainContentSectionProps> = ({
                     <div className="border-b border-[#d6d6d6] p-6">
                       <div className="flex items-start gap-2">
                         <div className="h-6 w-6 bg-[#c480e7] rounded-xl flex items-center justify-center">
-                          <span className="text-[10px] font-bold">JC</span>
+                          <span className="text-white text-2xl font-bold">JC</span>
                         </div>
                         <Input
                           className="flex-1 h-[148px] border-[#999999]"
