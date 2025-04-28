@@ -274,20 +274,7 @@ export const ChatbotPane: React.FC<ChatbotPaneProps & { onInsertResponse?: (resp
                   <span className="ml-1 text-sm">{message.content}</span>
                 </div>
               ) : (
-                <div>
-                  <div className="message-content">{message.content}</div>
-                  {mode === "write" && !message.isUser && onInsertResponse && (
-                    <div className="mt-2 text-right">
-                      <Button 
-                        size="sm" 
-                        className="bg-purple-600 hover:bg-purple-700 text-white text-xs py-1 h-7"
-                        onClick={() => onInsertResponse(message.content)}
-                      >
-                        Insert
-                      </Button>
-                    </div>
-                  )}
-                </div>
+                <div className="message-content">{message.content}</div>
               )}
               
               {/* Display attachments if any */}
@@ -373,6 +360,29 @@ export const ChatbotPane: React.FC<ChatbotPaneProps & { onInsertResponse?: (resp
               >
                 <PaperclipIcon className="h-4 w-4 text-gray-500" />
               </Button>
+              
+              {/* Insert button - only visible in write mode and when we have non-user messages */}
+              {mode === "write" && onInsertResponse && messages.some(m => !m.isUser && !m.isLoading) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-3 text-xs border-purple-400 text-purple-700 font-medium"
+                  onClick={() => {
+                    // Find the last non-user, non-loading message to insert
+                    const lastResponse = [...messages]
+                      .reverse()
+                      .find(m => !m.isUser && !m.isLoading);
+                    
+                    if (lastResponse) {
+                      onInsertResponse(lastResponse.content);
+                    }
+                  }}
+                  disabled={isProcessing}
+                >
+                  Insert
+                </Button>
+              )}
+              
               <Button 
                 variant="ghost" 
                 size="icon" 
@@ -458,20 +468,7 @@ export const ChatbotPane: React.FC<ChatbotPaneProps & { onInsertResponse?: (resp
                     <span className="ml-1 text-sm">{message.content}</span>
                   </div>
                 ) : (
-                  <div>
                   <div className="message-content">{message.content}</div>
-                  {mode === "write" && !message.isUser && onInsertResponse && (
-                    <div className="mt-2 text-right">
-                      <Button 
-                        size="sm" 
-                        className="bg-purple-600 hover:bg-purple-700 text-white text-xs py-1 h-7"
-                        onClick={() => onInsertResponse(message.content)}
-                      >
-                        Insert
-                      </Button>
-                    </div>
-                  )}
-                </div>
                 )}
                 
                 {/* Display attachments if any */}
@@ -557,6 +554,29 @@ export const ChatbotPane: React.FC<ChatbotPaneProps & { onInsertResponse?: (resp
                 >
                   <PaperclipIcon className="h-4 w-4 text-gray-500" />
                 </Button>
+                
+                {/* Insert button - only visible in write mode and when we have non-user messages */}
+                {mode === "write" && onInsertResponse && messages.some(m => !m.isUser && !m.isLoading) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-3 text-xs border-purple-400 text-purple-700 font-medium"
+                    onClick={() => {
+                      // Find the last non-user, non-loading message to insert
+                      const lastResponse = [...messages]
+                        .reverse()
+                        .find(m => !m.isUser && !m.isLoading);
+                      
+                      if (lastResponse) {
+                        onInsertResponse(lastResponse.content);
+                      }
+                    }}
+                    disabled={isProcessing}
+                  >
+                    Insert
+                  </Button>
+                )}
+                
                 <Button 
                   variant="ghost" 
                   size="icon" 
