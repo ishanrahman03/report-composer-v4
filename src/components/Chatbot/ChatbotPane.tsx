@@ -25,8 +25,17 @@ interface Message {
   isLoading?: boolean;
 }
 
-export const ChatbotPane: React.FC<ChatbotPaneProps> = ({ isOpen, onClose, embedded = false }) => {
-  const [mode, setMode] = useState<"ask" | "write">("ask");
+interface InsertResponseProps {
+  response: string;
+}
+
+export const ChatbotPane: React.FC<ChatbotPaneProps & { onInsertResponse?: (response: string) => void }> = ({ 
+  isOpen, 
+  onClose, 
+  embedded = false,
+  onInsertResponse 
+}) => {
+  const [mode, setMode] = useState<"chat" | "write">("chat");
   const [messages, setMessages] = useState<Message[]>([
     { content: "Hello! I'm your Copilot assistant for CDP Climate disclosures. How can I help you today?", isUser: false },
   ]);
@@ -167,7 +176,7 @@ export const ChatbotPane: React.FC<ChatbotPaneProps> = ({ isOpen, onClose, embed
         
         // Get AI response based on mode
         let response;
-        if (mode === "ask") {
+        if (mode === "chat") {
           response = await analyzeCDPData(userMessage.content, sampleCDPData);
         } else {
           // For write mode, adjust the prompt to generate more detailed content
@@ -220,13 +229,13 @@ export const ChatbotPane: React.FC<ChatbotPaneProps> = ({ isOpen, onClose, embed
         <div className="bg-gray-100 rounded-md flex p-1">
           <button
             className={`flex-1 py-1.5 px-4 rounded-md text-sm font-medium transition-colors ${
-              mode === "ask" 
+              mode === "chat" 
                 ? "bg-white text-gray-900 shadow-sm" 
                 : "text-gray-600 hover:text-gray-900"
             }`}
-            onClick={() => setMode("ask")}
+            onClick={() => setMode("chat")}
           >
-            Ask
+            Chat
           </button>
           <button
             className={`flex-1 py-1.5 px-4 rounded-md text-sm font-medium transition-colors ${
@@ -265,7 +274,20 @@ export const ChatbotPane: React.FC<ChatbotPaneProps> = ({ isOpen, onClose, embed
                   <span className="ml-1 text-sm">{message.content}</span>
                 </div>
               ) : (
-                <div className="message-content">{message.content}</div>
+                <div>
+                  <div className="message-content">{message.content}</div>
+                  {mode === "write" && !message.isUser && onInsertResponse && (
+                    <div className="mt-2 text-right">
+                      <Button 
+                        size="sm" 
+                        className="bg-purple-600 hover:bg-purple-700 text-white text-xs py-1 h-7"
+                        onClick={() => onInsertResponse(message.content)}
+                      >
+                        Insert
+                      </Button>
+                    </div>
+                  )}
+                </div>
               )}
               
               {/* Display attachments if any */}
@@ -337,7 +359,7 @@ export const ChatbotPane: React.FC<ChatbotPaneProps> = ({ isOpen, onClose, embed
               value={input}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder={mode === "ask" ? "Ask a question..." : "Write a report..."}
+              placeholder={mode === "chat" ? "Ask a question..." : "Write a report..."}
               className="flex-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 py-2"
               disabled={isProcessing}
             />
@@ -379,10 +401,36 @@ export const ChatbotPane: React.FC<ChatbotPaneProps> = ({ isOpen, onClose, embed
     </div>
   );
 
-  // If embedded, just return the content without the mode selector
+  // If embedded, return the content WITH the mode selector
   if (embedded) {
     return (
       <div className="flex flex-col h-full overflow-hidden relative">
+        {/* Mode selector */}
+        <div className="p-3 border-b border-[#eaeaea]">
+          <div className="bg-gray-100 rounded-md flex p-1">
+            <button
+              className={`flex-1 py-1.5 px-4 rounded-md text-sm font-medium transition-colors ${
+                mode === "chat" 
+                  ? "bg-white text-gray-900 shadow-sm" 
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+              onClick={() => setMode("chat")}
+            >
+              Chat
+            </button>
+            <button
+              className={`flex-1 py-1.5 px-4 rounded-md text-sm font-medium transition-colors ${
+                mode === "write" 
+                  ? "bg-white text-gray-900 shadow-sm" 
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+              onClick={() => setMode("write")}
+            >
+              Write
+            </button>
+          </div>
+        </div>
+        
         {/* Chat container */}
         <div 
           ref={chatContainerRef}
@@ -410,7 +458,20 @@ export const ChatbotPane: React.FC<ChatbotPaneProps> = ({ isOpen, onClose, embed
                     <span className="ml-1 text-sm">{message.content}</span>
                   </div>
                 ) : (
+                  <div>
                   <div className="message-content">{message.content}</div>
+                  {mode === "write" && !message.isUser && onInsertResponse && (
+                    <div className="mt-2 text-right">
+                      <Button 
+                        size="sm" 
+                        className="bg-purple-600 hover:bg-purple-700 text-white text-xs py-1 h-7"
+                        onClick={() => onInsertResponse(message.content)}
+                      >
+                        Insert
+                      </Button>
+                    </div>
+                  )}
+                </div>
                 )}
                 
                 {/* Display attachments if any */}
@@ -482,7 +543,7 @@ export const ChatbotPane: React.FC<ChatbotPaneProps> = ({ isOpen, onClose, embed
                 value={input}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
-                placeholder={mode === "ask" ? "Ask a question..." : "Write a report..."}
+                placeholder={mode === "chat" ? "Ask a question..." : "Write a report..."}
                 className="flex-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 py-2"
                 disabled={isProcessing}
               />

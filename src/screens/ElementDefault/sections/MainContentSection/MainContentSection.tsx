@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import React, { useCallback, useMemo } from "react";
 import { createEditor, Editor } from "slate";
-import { Slate, Editable, withReact, useSlate } from "slate-react";
+import { Slate, Editable, withReact, useSlate, ReactEditor } from "slate-react";
 import { withHistory } from "slate-history";
 import { ChatbotPane } from "../../../../components/Chatbot/ChatbotPane";
 import {
@@ -178,13 +178,15 @@ export const MainContentSection: React.FC<MainContentSectionProps> = ({
   const renderElement = useCallback((props: any) => {
     const { attributes, children, element } = props;
     
+    const commonStyles = "break-words";
+    
     switch (element.type) {
       case 'heading':
-        return <h2 {...attributes} className="text-xl font-bold mb-2">{children}</h2>;
+        return <h2 {...attributes} className={`text-xl font-bold mb-2 ${commonStyles}`}>{children}</h2>;
       case 'subheading':
-        return <h3 {...attributes} className="text-lg font-semibold mb-1">{children}</h3>;
+        return <h3 {...attributes} className={`text-lg font-semibold mb-1 ${commonStyles}`}>{children}</h3>;
       default:
-        return <p {...attributes} className="mb-4">{children}</p>;
+        return <p {...attributes} className={`mb-4 ${commonStyles}`}>{children}</p>;
     }
   }, []);
   
@@ -482,11 +484,11 @@ export const MainContentSection: React.FC<MainContentSectionProps> = ({
                         className="bg-[#ebebeb] rounded px-2 py-0.5 h-6 mb-4"
                       >
                         <span className="font-normal text-sm text-[#000000cc] tracking-[0.08px] font-['Arial-Narrow',Helvetica]">
-                          C0.5
+                          C0.1
                         </span>
                       </Badge>
                       <p className="font-bold text-base text-[#000000cc] tracking-[0.08px] leading-[22.7px]">
-                      Select the option that describes the reporting boundary for which climate related impacts on your business are being reported. Note that this option should align with your chosen approach for consolidating your GHG inventory.
+                      Give a general description and introduction to your organisation
                       </p>
                     </div>
 
@@ -593,12 +595,12 @@ export const MainContentSection: React.FC<MainContentSectionProps> = ({
                             </Button>
                           </div>
 
-                          <div className="min-h-[150px] border border-gray-200 rounded-md p-3 mt-4">
+                          <div className="min-h-[150px] max-h-[350px] border border-gray-200 rounded-md p-3 mt-4 overflow-y-auto">
                             <Editable
                               renderElement={renderElement}
                               renderLeaf={renderLeaf}
                               placeholder="Start typing an answer..."
-                              className="h-full outline-none text-base font-['Arial-Narrow',Helvetica] tracking-[0.08px]"
+                              className="h-full outline-none text-base font-['Arial-Narrow',Helvetica] tracking-[0.08px] whitespace-pre-wrap"
                               onKeyDown={(event) => {
                                 // Handle keyboard shortcuts
                                 if (event.key === 'b' && (event.ctrlKey || event.metaKey)) {
@@ -714,7 +716,51 @@ export const MainContentSection: React.FC<MainContentSectionProps> = ({
                       </Button>
                     </div>
                     <div className="flex-1">
-                      <ChatbotPane isOpen={true} onClose={onCloseChatbot} embedded={true} />
+                      <ChatbotPane 
+                        isOpen={true} 
+                        onClose={onCloseChatbot} 
+                        embedded={true} 
+                        onInsertResponse={(response) => {
+                          const formattedResponse = response.trim();
+                          
+                          // Define a helper to insert content into paragraphs
+                          const insertFormattedText = () => {
+                            // Split response into paragraphs if needed
+                            const paragraphs = formattedResponse.split(/\n\s*\n/);
+                            
+                            if (paragraphs.length === 1) {
+                              // Simple insert for single paragraph
+                              editor.insertText(formattedResponse);
+                            } else {
+                              // For multiple paragraphs, insert as proper paragraphs
+                              editor.insertText(paragraphs[0]);
+                              
+                              // Insert the rest as new paragraphs
+                              for (let i = 1; i < paragraphs.length; i++) {
+                                editor.insertBreak();
+                                editor.insertText(paragraphs[i]);
+                              }
+                            }
+                          };
+                          
+                          // Get selection and insert the text at cursor position
+                          const selection = editor.selection;
+                          if (selection) {
+                            // Insert at current selection
+                            insertFormattedText();
+                          } else {
+                            // If no selection, place cursor at end and insert
+                            const point = Editor.end(editor, []);
+                            editor.select(point);
+                            insertFormattedText();
+                          }
+                          
+                          // Ensure editor receives focus after insertion
+                          setTimeout(() => {
+                            ReactEditor.focus(editor);
+                          }, 0);
+                        }} 
+                      />
                     </div>
                   </div>
                 </div>

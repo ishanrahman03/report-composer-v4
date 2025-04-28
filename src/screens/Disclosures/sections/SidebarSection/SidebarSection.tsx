@@ -36,10 +36,10 @@ import { ScrollArea } from "../../../../components/ui/scroll-area";
 const mainNavItems = [
   { icon: <BarChart3Icon className="h-4 w-4" />, label: "Overview", path: "/" },
   { icon: <LayoutDashboardIcon className="h-4 w-4" />, label: "Dashboard", path: "/" },
-  { icon: <StarIcon className="h-4 w-4" />, label: "Canvas", path: "/" },
+  { icon: <StarIcon className="h-4 w-4" />, label: "Canvas", path: "http://localhost:3000/dashboard/carbon-marketplace" },
   { icon: <FileTextIcon className="h-4 w-4" />, label: "Disclosures", path: "/disclosures" },
   { icon: <MailIcon className="h-4 w-4" />, label: "Email Workflow", path: "/" },
-  { icon: <TruckIcon className="h-4 w-4" />, label: "Supply Chain", path: "/" },
+  { icon: <TruckIcon className="h-4 w-4" />, label: "Supply Chain", path: "https://app-latspace.vercel.app/dashboard/supply-chain" }, 
 ];
 
 const organizationItems = [
@@ -56,7 +56,7 @@ const scopeItems = [
 
 const actionItems = [
   { icon: <LineChartIcon className="h-4 w-4" />, label: "Measure" },
-  { icon: <StarIcon className="h-4 w-4" />, label: "Act" },
+  { icon: <StarIcon className="h-4 w-4" />, label: "Act",path: "http://localhost:3000/dashboard/carbon-marketplace" },
   { icon: <MailIcon className="h-4 w-4" />, label: "Report" },
 ];
 

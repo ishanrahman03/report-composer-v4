@@ -38,6 +38,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../../../../components/ui/accordion";
+import { useNavigate } from "react-router-dom";
 
 interface MainContentSectionProps {
   chatbotOpen: boolean;
@@ -60,8 +61,8 @@ export const MainContentSection: React.FC<MainContentSectionProps> = ({
     },
     {
       id: 2,
-      name: "GRI",
-      description: "Global Reporting Initiative",
+      name: "CDP",
+      description: "Carbon Disclosure Project",
       status: "Active",
       lastUpdated: "May 15, 2024",
       category: "Environmental",
@@ -148,6 +149,8 @@ export const MainContentSection: React.FC<MainContentSectionProps> = ({
       ]
     },
   ];
+
+  const navigate = useNavigate();
 
   return (
     <div className="flex flex-col w-full h-[calc(100vh-67px)] overflow-auto">
@@ -346,6 +349,7 @@ export const MainContentSection: React.FC<MainContentSectionProps> = ({
                                 variant="outline" 
                                 size="sm" 
                                 className="h-8 px-3 border-[#d6d6d6] text-sm"
+                                onClick={() => navigate(`/}`)}
                               >
                                 Edit
                               </Button>
